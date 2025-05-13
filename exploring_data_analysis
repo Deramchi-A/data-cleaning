@@ -1,0 +1,114 @@
+use world_layoffs;
+-- desc means descending 
+-- asc means ascending
+select *
+from layoffs_staging2;
+-- see the max of both total_laid_off and percentage_laid_off
+select max(total_laid_off) as maximum,
+max(percentage_laid_off) as maximum2
+from layoffs_staging2;
+-- see the total laid off in descending  where the percentage laid off is 100 per cent
+select *
+from layoffs_staging2
+where percentage_laid_off = 1
+order by total_laid_off desc;
+-- see the funds_raised_millions in descending  where the percentage laid off is 100 per cent
+select *
+from layoffs_staging2
+where percentage_laid_off = 1
+order by funds_raised_millions desc;
+-- see the sum of total laid off by the company in descending
+select company , sum(total_laid_off)
+from layoffs_staging2
+group by company
+order by 2 desc;
+-- see the period of this data information
+select max(date), min(date)
+from layoffs_staging2;
+-- see the sum of total laid off by the industry in descending
+select industry , sum(total_laid_off)
+from layoffs_staging2
+group by industry
+order by 2 desc;
+-- see the sum of total laid off by the country in descending
+select country , sum(total_laid_off)
+from layoffs_staging2
+group by country 
+order by 2 desc;
+-- see the sum of total laid off by the year from date in descending
+select year (date) , sum(total_laid_off)
+from layoffs_staging2
+group by year (date) 
+order by 1 desc;
+-- see the sum of total laid off by the stage in descending and ascending both colomn 1 and 2
+select stage , sum(total_laid_off)
+from layoffs_staging2
+group by stage
+order by 1 desc;
+select stage , sum(total_laid_off)
+from layoffs_staging2
+group by stage
+order by 1 asc;
+select stage , sum(total_laid_off)
+from layoffs_staging2
+group by stage
+order by 2 desc;
+select stage , sum(total_laid_off)
+from layoffs_staging2
+group by stage
+order by 2 asc;
+--grouping the date by mounth and calculating the total laid off in that month
+select substring(date, 1,7) as month,sum(total_laid_off)
+from layoffs_staging2
+where substring(date, 1,7) is not null
+group by month
+order by 1 asc
+;
+-- adding all the laid of every month to get the total of laid off by creating a cte
+with rolling_total as
+(
+select substring(date, 1,7) as month,sum(total_laid_off) as the_sum
+from layoffs_staging2
+where substring(date, 1,7) is not null
+group by month
+order by 1 asc
+)
+select month ,the_sum , sum(the_sum) over(order by month) as Rolling_Total
+from rolling_total;
+
+-- adding the total laid off of company per year
+select company ,year(date) as date_year, sum(total_laid_off)
+from layoffs_staging2
+group by company , date_year
+order by 3 desc;
+
+--create a cte to ranking company by the total laid off in the year ( 2020 rank1 and rank2 and rank3 ....)
+with Company_Year(company,years,total) as
+(
+select company ,year(date) , sum(total_laid_off)
+from layoffs_staging2
+group by company ,year(date)
+)
+select * , dense_rank() over(partition by years order by total desc) as ranking
+from Company_Year
+where years and total is not null 
+order by ranking asc;
+
+-- creating 2 ctes to ranking the top 5 copany of the year 
+
+with Company_Year(company,years,total) as
+(
+select company ,year(date) , sum(total_laid_off)
+from layoffs_staging2
+group by company ,year(date)
+), company_years_rank as
+(
+select * , dense_rank() over(partition by years order by total desc) as ranking
+from Company_Year
+where years and total is not null 
+order by years asc)
+
+select *
+from company_years_rank
+where ranking <= 5
+;
